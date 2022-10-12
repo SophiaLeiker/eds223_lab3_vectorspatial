@@ -1,0 +1,126 @@
+---
+title: 'Lab 3: Vector Operations'
+author: "Sophia Leiker"
+date: "10/12/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(sf)
+library(spData)
+library(tmap)
+library(tidyverse)
+library(rmapshaper)
+library(smoothr)
+```
+
+# Vector Operations
+
+```{r}
+nz
+nz_height
+```
+
+Getting just the points in Canterbury
+
+```{r}
+#filtering to only select canterbury
+canterbury <- nz %>% 
+  filter(Name == "Canterbury")
+
+#this gives us all the points that fall inside of canterbury
+c_height <- nz_height[canterbury,]
+
+#making a map to check
+tm_shape(nz) +
+  tm_polygons() +
+  tm_shape(nz_height)+
+  tm_dots(col = "red")
+
+#only mapping the points that fall into canterbury
+tm_shape(nz) +
+  tm_polygons() +
+  tm_shape(c_height) +
+  tm_dots(col = "red")
+
+#creating for opposite, using st_dis
+outside_height <- nz_height[canterbury, , op = st_disjoint]
+
+#map it
+tm_shape(nz) +
+  tm_polygons() +
+  tm_shape(outside_height) +
+  tm_dots(col = "red")
+
+#st_intersects (if it touches at all, include it)
+sel_sgbp <- st_intersects(x = nz_height, y = canterbury)
+
+#turning this into a logical (anything greater than 0 are the rows we want because that means they intersect it)
+sel_logical <- lengths(sel_sgbp) > 0
+
+c_height2 <-nz_height[sel_logical, ]
+tm_shape(nz) +
+  tm_polygons() +
+  tm_shape(c_height2) +
+  tm_dots(col = "red")
+```
+
+Points in Canterbury Again
+
+```{r}
+#Can do the same thing with tidy commands using st_filter
+c_height3 <- nz_height %>% 
+  st_filter(y=canterbury, .predicate = st_intersects) #filter using a spatial intersection
+
+tm_shape(nz) +
+  tm_polygons() +
+  tm_shape(c_height3) +
+  tm_dots(col = "red")
+```
+
+```{r}
+outside_height10 <- nz_height %>% 
+  st_filter(y=canterbury, .predicate = st_disjoint)
+
+tm_shape(nz) +
+  tm_polygons() +
+  tm_shape(outside_height10) +
+  tm_dots(col = "red")
+```
+
+## Creating Bounding Box
+
+```{r}
+#creating bounding box
+
+bb <- st_bbox(world)
+
+#setting random points within the dataframe
+random_df <- data.frame(
+  x=runif(n=10,min = bb[1], max = bb[3]),
+  y=runif(n=10,min = bb[2], max = bb[4])
+)
+
+#turning a data frame into an sf object
+random_points <- random_df %>% 
+  st_as_sf(coords = c("x", "y")) %>% 
+  st_set_crs("EPSG:4326")
+
+#checking that random points is now an sf object
+class(random_points)
+
+#mapping this
+tm_shape(world) +
+  tm_fill() +
+  tm_shape(random_points) +
+  tm_dots(col = "red")
+
+#figuring out what countries have the points in them
+world_random <- world[random_points, ]
+tm_shape(world_random) +
+  tm_fill() #just filling in shapes that have points in them
+```
+
+
